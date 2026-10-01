@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.vercel/
+.env
+.env.local
+.pydeps/
+.tools/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
