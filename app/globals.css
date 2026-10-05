@@ -8,3 +8,5 @@
 .price-kpis{grid-template-columns:repeat(3,1fr)}
 .price-kpis small{display:block;margin-top:6px;color:var(--muted);font-size:12px}
 @media(max-width:760px){.price-kpis{grid-template-columns:1fr}}
+.clients-panel th:nth-child(2),.clients-panel td:nth-child(2){text-align:left}
+.clients-panel .rank-column{width:72px;text-align:center;color:var(--green);font-weight:800}
