@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { BarChart3, Database, FileSpreadsheet, Leaf, LoaderCircle, LogOut, Upload, X } from "lucide-react";
+import { BarChart3, CalendarClock, Database, FileSpreadsheet, History, Leaf, LoaderCircle, LogOut, Upload, X } from "lucide-react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { LoginScreen } from "@/components/LoginScreen";
 import { filterRecords } from "@/lib/analytics";
@@ -12,6 +12,7 @@ import type { SaleRecord, SeedPayload } from "@/types/sales";
 
 const LOCAL_KEY = "agricola-marasca-records-v1";
 type Notice = { tone: "success" | "error"; text: string };
+type ImportHistoryEntry = { id: number; imported_at: string };
 const Dashboard = dynamic(() => import("@/components/Dashboard").then((module) => module.Dashboard), { ssr: false });
 const DataWorkspace = dynamic(() => import("@/components/DataWorkspace").then((module) => module.DataWorkspace), { ssr: false });
 
@@ -40,6 +41,8 @@ export default function Home() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [importPreview, setImportPreview] = useState<{ records: SaleRecord[]; source: string; notes: number; newCount: number } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>([]);
+  const [showImportHistory, setShowImportHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo<SupabaseClient | null>(() => createBrowserSupabase(), []);
   const signedInUserId = session?.user.id;
@@ -52,7 +55,10 @@ export default function Home() {
         if (!mounted) return;
         setSession(data.session);
         if (!isSupabaseAuthEnabled || data.session) {
-          await loadSupabaseRecords(supabase, setRecords, setNotice);
+          await Promise.all([
+            loadSupabaseRecords(supabase, setRecords, setNotice),
+            loadImportHistory(supabase, setImportHistory),
+          ]);
         }
       } else {
         const stored = localStorage.getItem(LOCAL_KEY);
@@ -68,8 +74,13 @@ export default function Home() {
     bootstrap();
     const subscription = isSupabaseAuthEnabled ? supabase?.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (nextSession && supabase) void loadSupabaseRecords(supabase, setRecords, setNotice);
-      if (!nextSession) setRecords([]);
+      if (nextSession && supabase) {
+        void Promise.all([
+          loadSupabaseRecords(supabase, setRecords, setNotice),
+          loadImportHistory(supabase, setImportHistory),
+        ]);
+      }
+      if (!nextSession) { setRecords([]); setImportHistory([]); }
       setLoading(false);
     }).data.subscription : undefined;
     return () => { mounted = false; subscription?.unsubscribe(); };
@@ -94,11 +105,30 @@ export default function Home() {
           if (!changedRecord) return;
           setRecords((current) => {
             const recordIndex = current.findIndex((record) => record.id === changedRecord.id);
-            if (recordIndex === -1) return [...current, changedRecord].sort((a, b) => a.date.localeCompare(b.date));
+            if (recordIndex === -1) return mergeSaleRecords(current, [changedRecord]);
             const updated = [...current];
             updated[recordIndex] = changedRecord;
             return updated.sort((a, b) => a.date.localeCompare(b.date));
           });
+        },
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [signedInUserId, supabase]);
+
+  useEffect(() => {
+    if (!supabase || (isSupabaseAuthEnabled && !signedInUserId)) return;
+
+    const channel = supabase
+      .channel("import-history-sync")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "import_history" },
+        (payload) => {
+          const entry = payload.new as ImportHistoryEntry;
+          if (!entry.id || !entry.imported_at) return;
+          setImportHistory((current) => mergeImportHistory(current, [entry]));
         },
       )
       .subscribe();
@@ -132,15 +162,27 @@ export default function Home() {
     const existing = new Set(records.map(recordFingerprint)); const newRecords = importPreview.records.filter((record) => !existing.has(recordFingerprint(record)));
     try {
       if (supabase && newRecords.length) await persistSupabaseRecords(supabase, newRecords);
-      setRecords((current) => [...current, ...newRecords].sort((a, b) => a.date.localeCompare(b.date)));
-      setNotice({ tone: "success", text: `${newRecords.length.toLocaleString("pt-BR")} itens novos importados. ${importPreview.records.length - newRecords.length} duplicados foram ignorados.` }); setImportPreview(null);
+      setRecords((current) => mergeSaleRecords(current, newRecords));
+
+      let historySaved = true;
+      if (supabase) {
+        const { data, error } = await supabase.from("import_history").insert({}).select("id, imported_at").single();
+        if (error) historySaved = false;
+        else setImportHistory((current) => mergeImportHistory(current, [data as ImportHistoryEntry]));
+      } else {
+        setImportHistory((current) => mergeImportHistory(current, [{ id: Date.now(), imported_at: new Date().toISOString() }]));
+      }
+
+      const summary = `${newRecords.length.toLocaleString("pt-BR")} itens novos importados. ${importPreview.records.length - newRecords.length} duplicados foram ignorados.`;
+      setNotice({ tone: historySaved ? "success" : "error", text: historySaved ? `${summary} Indicadores atualizados.` : `${summary} O histórico não pôde ser registrado.` });
+      setImportPreview(null);
     } catch { setNotice({ tone: "error", text: "A planilha foi lida, mas não foi possível salvar os dados." }); }
     finally { setImporting(false); }
   }
 
   async function addRecord(record: SaleRecord) {
     if (supabase) { const { error } = await supabase.from("sales_records").insert(toDatabaseRow(record)); if (error) { setNotice({ tone: "error", text: "Não foi possível salvar o registro." }); return; } }
-    setRecords((current) => [...current, record]); setNotice({ tone: "success", text: "Registro incluído e indicadores atualizados." });
+    setRecords((current) => mergeSaleRecords(current, [record])); setNotice({ tone: "success", text: "Registro incluído e indicadores atualizados." });
   }
 
   async function deleteRecord(id: string) {
@@ -154,12 +196,29 @@ export default function Home() {
 
   return <main className="app-shell">
     <header className="topbar"><div className="brand"><span className="brand-mark"><Leaf size={21}/></span><span><strong>Agrícola Marasca</strong><small>Inteligência comercial</small></span></div><nav className="tabs" aria-label="Navegação principal"><button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}><BarChart3 size={17}/> Visão geral</button><button className={activeTab === "data" ? "active" : ""} onClick={() => setActiveTab("data")}><Database size={17}/> Base de dados</button></nav><div className="top-actions">{!supabase && <span className="demo-badge">Demonstração local</span>}{supabase && !isSupabaseAuthEnabled && <span className="demo-badge">Supabase conectado</span>}{supabase && isSupabaseAuthEnabled && session && <button className="icon-button" onClick={() => supabase.auth.signOut()} aria-label="Sair"><LogOut size={18}/></button>}</div></header>
-    <section className="workspace"><div className="page-heading"><div><p className="eyebrow">{activeTab === "dashboard" ? "PAINEL COMERCIAL" : "GESTÃO DOS DADOS"}</p><h1>{activeTab === "dashboard" ? "Vendas e rentabilidade" : "Base de dados"}</h1><p>{activeTab === "dashboard" ? "Indicadores calculados automaticamente a partir da base consolidada." : "Importe a planilha semanal ou mantenha os registros manualmente."}</p></div><div className="heading-actions">{activeTab === "dashboard" && <div className="date-filter"><select aria-label="Período" value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">Todo o período</option><option value="90d">Últimos 90 dias</option><option value="month">Mês mais recente</option><option value="custom">Personalizado</option></select>{period === "custom" && <div className="date-range-fields"><label><span>De</span><input type="text" inputMode="numeric" maxLength={10} placeholder="dd/mm/aaaa" aria-label="Data inicial" value={customStart} aria-invalid={customRangeInvalid} onChange={(event) => setCustomStart(maskDate(event.target.value))}/></label><span className="date-separator">a</span><label><span>Até</span><input type="text" inputMode="numeric" maxLength={10} placeholder="dd/mm/aaaa" aria-label="Data final" value={customEnd} aria-invalid={customRangeInvalid} onChange={(event) => setCustomEnd(maskDate(event.target.value))}/></label>{customRangeInvalid && <small role="alert">Informe datas válidas, com a inicial anterior à final.</small>}</div>}</div>}<input ref={inputRef} type="file" accept=".xls,.xlsx" hidden onChange={handleFile}/><button className="primary-button" onClick={() => inputRef.current?.click()} disabled={importing}>{importing ? <LoaderCircle className="spin" size={18}/> : <Upload size={18}/>} Importar planilha</button></div></div>
+    <section className="workspace"><div className="page-heading"><div><p className="eyebrow">{activeTab === "dashboard" ? "PAINEL COMERCIAL" : "GESTÃO DOS DADOS"}</p><h1>{activeTab === "dashboard" ? "Vendas e rentabilidade" : "Base de dados"}</h1><p>{activeTab === "dashboard" ? "Indicadores calculados automaticamente a partir da base consolidada." : "Importe a planilha semanal ou mantenha os registros manualmente."}</p></div><div className="heading-actions">{activeTab === "dashboard" && <div className="date-filter"><select aria-label="Período" value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">Todo o período</option><option value="90d">Últimos 90 dias</option><option value="month">Mês mais recente</option><option value="custom">Personalizado</option></select>{period === "custom" && <div className="date-range-fields"><label><span>De</span><input type="text" inputMode="numeric" maxLength={10} placeholder="dd/mm/aaaa" aria-label="Data inicial" value={customStart} aria-invalid={customRangeInvalid} onChange={(event) => setCustomStart(maskDate(event.target.value))}/></label><span className="date-separator">a</span><label><span>Até</span><input type="text" inputMode="numeric" maxLength={10} placeholder="dd/mm/aaaa" aria-label="Data final" value={customEnd} aria-invalid={customRangeInvalid} onChange={(event) => setCustomEnd(maskDate(event.target.value))}/></label>{customRangeInvalid && <small role="alert">Informe datas válidas, com a inicial anterior à final.</small>}</div>}</div>}{activeTab === "data" && <><input ref={inputRef} type="file" accept=".xls,.xlsx" hidden onChange={handleFile}/><button className="icon-button" onClick={() => setShowImportHistory(true)} aria-label="Histórico de importações" title="Histórico de importações"><History size={19}/></button><button className="primary-button" onClick={() => inputRef.current?.click()} disabled={importing}>{importing ? <LoaderCircle className="spin" size={18}/> : <Upload size={18}/>} Importar planilha</button></>}</div></div>
       {notice && <div className={`notice ${notice.tone}`} role="status"><span>{notice.text}</span><button onClick={() => setNotice(null)} aria-label="Fechar aviso"><X size={16}/></button></div>}
       {activeTab === "dashboard" ? <Dashboard records={visibleRecords}/> : <DataWorkspace records={records} onAdd={addRecord} onDelete={deleteRecord}/>} 
     </section>
     {importPreview && <div className="modal-backdrop"><section className="modal import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title"><header><div><p className="eyebrow">IMPORTAÇÃO VALIDADA</p><h2 id="import-title">{importPreview.source}</h2></div><button className="icon-button" onClick={() => setImportPreview(null)} aria-label="Fechar"><X size={19}/></button></header><div className="import-result"><span className="file-icon"><FileSpreadsheet size={32}/></span><div><strong>{importPreview.records.length.toLocaleString("pt-BR")} itens encontrados</strong><p>{importPreview.notes.toLocaleString("pt-BR")} documentos · {importPreview.newCount.toLocaleString("pt-BR")} itens novos</p></div></div><p className="import-note">O sistema acrescentará apenas os registros novos. Itens já existentes na base serão ignorados para evitar duplicidade.</p><footer><button className="ghost-button" onClick={() => setImportPreview(null)}>Cancelar</button><button className="primary-button" onClick={confirmImport} disabled={importing}>{importing && <LoaderCircle className="spin" size={18}/>} Confirmar importação</button></footer></section></div>}
+    {showImportHistory && <div className="modal-backdrop"><section className="modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title"><header><div><p className="eyebrow">HISTÓRICO</p><h2 id="history-title">Importações de planilhas</h2></div><button className="icon-button" onClick={() => setShowImportHistory(false)} aria-label="Fechar"><X size={19}/></button></header>{importHistory.length ? <ol className="history-list">{importHistory.map((entry) => <li key={entry.id}><CalendarClock size={18}/><time dateTime={entry.imported_at}>{formatImportDate(entry.imported_at)}</time></li>)}</ol> : <div className="history-empty"><History size={28}/><p>Nenhuma importação registrada ainda.</p></div>}</section></div>}
   </main>;
+}
+
+function mergeSaleRecords(current: SaleRecord[], incoming: SaleRecord[]) {
+  const recordsById = new Map(current.map((record) => [record.id, record]));
+  incoming.forEach((record) => recordsById.set(record.id, record));
+  return [...recordsById.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function mergeImportHistory(current: ImportHistoryEntry[], incoming: ImportHistoryEntry[]) {
+  const entriesById = new Map(current.map((entry) => [entry.id, entry]));
+  incoming.forEach((entry) => entriesById.set(entry.id, entry));
+  return [...entriesById.values()].sort((a, b) => b.imported_at.localeCompare(a.imported_at));
+}
+
+function formatImportDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 function toDatabaseRow(record: SaleRecord) {
@@ -202,4 +261,12 @@ async function loadSupabaseRecords(supabase: SupabaseClient, setRecords: (record
   } catch {
     setNotice({ tone: "error", text: "O banco está vazio e a carga inicial não pôde ser concluída." });
   }
+}
+
+async function loadImportHistory(supabase: SupabaseClient, setHistory: (entries: ImportHistoryEntry[]) => void) {
+  const { data, error } = await supabase
+    .from("import_history")
+    .select("id, imported_at")
+    .order("imported_at", { ascending: false });
+  if (!error) setHistory((data ?? []) as ImportHistoryEntry[]);
 }
