@@ -5,7 +5,7 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { AlertTriangle, CalendarRange, CircleDollarSign, FileText, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, CalendarRange, CircleDollarSign, FileText, TrendingDown, TrendingUp } from "lucide-react";
 import { buildAnalytics } from "@/lib/analytics";
 import { compactMoney, money, percent, shortDate, truncate } from "@/lib/format";
 import type { SaleRecord } from "@/types/sales";
@@ -69,12 +69,7 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
         </ChartCard>
       </section>
 
-      <section className="chart-grid concentration-grid">
-        <ChartCard title="10 maiores clientes em vendas (R$)" eyebrow="CONCENTRAÇÃO DA CARTEIRA">
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={data.clients.slice(0, 10).map((item) => ({ ...item, label: truncate(item.name, 24) }))} layout="vertical" margin={{ left: 18 }}><CartesianGrid stroke="#263129" horizontal={false}/><XAxis type="number" tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><YAxis type="category" dataKey="label" width={145} tick={axisStyle}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Bar dataKey="sales" name="Vendas" fill="#95c947" radius={[0, 8, 8, 0]}/></BarChart></ResponsiveContainer>
-        </ChartCard>
-        <article className="panel table-panel"><div className="panel-heading"><p className="eyebrow">RESUMO MENSAL</p><h3>Desempenho por mês</h3></div><div className="table-scroll"><table><thead><tr><th>Mês</th><th>Vendas</th><th>Custo</th><th>Resultado</th><th>Margem</th><th>Documentos</th><th>Ticket médio</th></tr></thead><tbody>{data.monthly.map((item) => <tr key={item.key}><td>{item.label}</td><td>{money.format(item.sales)}</td><td>{money.format(item.cost)}</td><td>{money.format(item.profit)}</td><td>{percent.format(item.margin)}</td><td>{item.notes}</td><td>{money.format(item.ticket)}</td></tr>)}</tbody></table></div></article>
-      </section>
+      <article className="panel table-panel"><div className="panel-heading"><p className="eyebrow">RESUMO MENSAL</p><h3>Desempenho por mês</h3></div><div className="table-scroll"><table><thead><tr><th>Mês</th><th>Vendas</th><th>Custo</th><th>Resultado</th><th>Margem</th><th>Documentos</th></tr></thead><tbody>{data.monthly.map((item) => <tr key={item.key}><td>{item.label}</td><td>{money.format(item.sales)}</td><td>{money.format(item.cost)}</td><td>{money.format(item.profit)}</td><td>{percent.format(item.margin)}</td><td>{item.notes}</td></tr>)}</tbody></table></div></article>
 
       <section className="section-block">
         <div className="section-title"><div><p className="eyebrow">PREÇOS PRATICADOS E TABELA</p><h2>Desvios de preço</h2></div></div>
