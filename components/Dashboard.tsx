@@ -60,13 +60,6 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
         </ChartCard>
       </section>
 
-      <section className="panel attention-panel">
-        <div className="panel-heading"><p className="eyebrow">PONTOS DE ATENÇÃO</p><h3>Concentração e exposição comercial</h3></div>
-        <div className="attention-grid">
-          <div><span>Vendas em itens com margem abaixo de 10%</span><strong>{percent.format(data.attention.lowMarginShare)}</strong><small>{money.format(data.attention.lowMarginSales)}</small></div>
-        </div>
-      </section>
-
       <section className="chart-grid two">
         <ChartCard title="10 maiores produtos em vendas (R$)" eyebrow="PRODUTOS QUE GERAM VENDA E RESULTADO">
           <ResponsiveContainer width="100%" height="100%"><BarChart data={data.products.slice(0, 10).map((item) => ({ ...item, label: truncate(item.name, 22) }))} layout="vertical" margin={{ left: 18 }}><CartesianGrid stroke="#263129" horizontal={false}/><XAxis type="number" tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><YAxis type="category" dataKey="label" width={135} tick={axisStyle}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Bar dataKey="sales" name="Vendas" fill="#95c947" radius={[0, 8, 8, 0]}/></BarChart></ResponsiveContainer>
@@ -85,7 +78,7 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
 
       <section className="section-block">
         <div className="section-title"><div><p className="eyebrow">PREÇOS PRATICADOS E TABELA</p><h2>Desvios de preço</h2></div></div>
-        <div className="price-kpis"><article><span>Diferença abaixo da tabela</span><strong>{money.format(data.belowTable)}</strong></article><article><span>Diferença acima da tabela</span><strong>{money.format(data.aboveTable)}</strong></article></div>
+        <div className="price-kpis"><article><span>Diferença abaixo da tabela</span><strong>{money.format(data.belowTable)}</strong></article><article><span>Diferença acima da tabela</span><strong>{money.format(data.aboveTable)}</strong></article><article><span>Vendas em itens com margem abaixo de 10%</span><strong>{percent.format(data.attention.lowMarginShare)}</strong><small>{money.format(data.attention.lowMarginSales)}</small></article></div>
         <article className="panel table-panel"><div className="panel-heading"><h3>Maiores diferenças abaixo da tabela</h3></div><div className="table-scroll"><table><thead><tr><th>Data</th><th>Nota</th><th>Cliente</th><th>Produto</th><th>Venda</th><th>Valor de tabela</th><th>Deixou de ganhar</th><th>Dif. %</th><th>Margem</th></tr></thead><tbody>{data.belowTableRows.slice(0, 10).map((record) => <tr key={record.id}><td>{shortDate(record.date)}</td><td>{record.note}</td><td>{record.client}</td><td>{truncate(record.product, 38)}</td><td>{money.format(record.sale)}</td><td>{money.format(record.tableUnit * record.quantity)}</td><td>{money.format(-record.tableDiffTotal)}</td><td>{percent.format(record.tableDiffPercent)}</td><td>{percent.format(record.sale ? record.profit / record.sale : 0)}</td></tr>)}</tbody></table></div></article>
       </section>
 

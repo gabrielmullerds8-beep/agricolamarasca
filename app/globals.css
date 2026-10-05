@@ -5,3 +5,6 @@
 .page-jump,.page-jump label{display:flex;align-items:center;gap:7px}.page-jump input{width:54px;height:35px;padding:0 7px;color:var(--text);background:#0c120e;border:1px solid var(--line);border-radius:9px;outline:0;text-align:center}.page-jump input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(168,214,94,.12)}
 .history-modal{width:min(520px,96vw)}.history-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}.history-list li{display:flex;align-items:center;gap:12px;padding:14px 16px;color:var(--text);background:#0d1410;border:1px solid var(--line);border-radius:12px}.history-list svg{color:var(--green)}.history-list time{font-variant-numeric:tabular-nums}.history-empty{display:grid;place-items:center;gap:8px;min-height:150px;color:var(--muted);text-align:center}.history-empty svg{color:var(--green)}.history-empty p{margin:0}
 .attention-grid{grid-template-columns:1fr}
+.price-kpis{grid-template-columns:repeat(3,1fr)}
+.price-kpis small{display:block;margin-top:6px;color:var(--muted);font-size:12px}
+@media(max-width:760px){.price-kpis{grid-template-columns:1fr}}
