@@ -7,7 +7,7 @@ export const hasSupabaseConfig = Boolean(
 export const isSupabaseAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
 
 export function createBrowserSupabase() {
-  if (!hasSupabaseConfig || !isSupabaseAuthEnabled) return null;
+  if (!hasSupabaseConfig) return null;
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
