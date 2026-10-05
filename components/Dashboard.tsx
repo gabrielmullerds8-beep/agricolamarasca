@@ -43,6 +43,15 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
       </section>
 
       <section className="chart-grid two">
+        <ChartCard title="Vendas por semana (R$)" eyebrow="EVOLUÇÃO E MARGEM">
+          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Line type="monotone" dataKey="sales" name="Vendas" stroke="#9acb4c" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
+        </ChartCard>
+        <ChartCard title="Margem por semana" eyebrow="EVOLUÇÃO E MARGEM">
+          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => `${Math.round(value * 100)}%`}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => percent.format(Number(value))}/><Line type="monotone" dataKey="margin" name="Margem" stroke="#f4bb32" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
+        </ChartCard>
+      </section>
+
+      <section className="chart-grid two">
         <ChartCard title="Vendas e custo por mês (R$)" eyebrow="VENDAS E RENTABILIDADE">
           <ResponsiveContainer width="100%" height="100%"><AreaChart data={data.monthly}><defs><linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#a8d65e" stopOpacity={0.35}/><stop offset="95%" stopColor="#a8d65e" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle}/><YAxis tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Legend/><Area type="monotone" dataKey="sales" name="Vendas" stroke="#a8d65e" fill="url(#salesFill)" strokeWidth={3}/><Line type="monotone" dataKey="cost" name="Custo" stroke="#ff7979" strokeWidth={2.5} dot={false}/></AreaChart></ResponsiveContainer>
         </ChartCard>
@@ -56,15 +65,6 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
         <div className="attention-grid">
           <div><span>Vendas em itens com margem abaixo de 10%</span><strong>{percent.format(data.attention.lowMarginShare)}</strong><small>{money.format(data.attention.lowMarginSales)}</small></div>
         </div>
-      </section>
-
-      <section className="chart-grid two">
-        <ChartCard title="Vendas por semana (R$)" eyebrow="EVOLUÇÃO E MARGEM">
-          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Line type="monotone" dataKey="sales" name="Vendas" stroke="#9acb4c" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title="Margem por semana" eyebrow="EVOLUÇÃO E MARGEM">
-          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => `${Math.round(value * 100)}%`}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => percent.format(Number(value))}/><Line type="monotone" dataKey="margin" name="Margem" stroke="#f4bb32" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
-        </ChartCard>
       </section>
 
       <section className="chart-grid two">

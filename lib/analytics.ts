@@ -111,15 +111,13 @@ export function buildAnalytics(records: SaleRecord[]) {
   })).sort((a, b) => b.sales - a.sales);
 
   const maximumDate = computedRecords.length ? dateAtNoon(computedRecords.reduce((max, record) => (record.date > max ? record.date : max), computedRecords[0].date)) : new Date();
-  const lastClosedSunday = new Date(maximumDate);
-  lastClosedSunday.setDate(lastClosedSunday.getDate() - lastClosedSunday.getDay());
-  if (maximumDate.getDay() === 0) lastClosedSunday.setDate(lastClosedSunday.getDate() - 7);
-  const lastWeekStart = new Date(lastClosedSunday);
-  lastWeekStart.setDate(lastWeekStart.getDate() - 6);
+  const lastWeekStart = mondayOf(maximumDate);
+  const lastClosedSunday = new Date(lastWeekStart);
+  lastClosedSunday.setDate(lastClosedSunday.getDate() + 6);
   const previousStart = new Date(lastWeekStart);
   previousStart.setDate(previousStart.getDate() - 7);
-  const previousEnd = new Date(lastClosedSunday);
-  previousEnd.setDate(previousEnd.getDate() - 7);
+  const previousEnd = new Date(lastWeekStart);
+  previousEnd.setDate(previousEnd.getDate() - 1);
 
   const inRange = (record: SaleRecord, start: Date, end: Date) => {
     const date = dateAtNoon(record.date);
