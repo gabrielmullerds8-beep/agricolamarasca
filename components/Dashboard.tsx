@@ -55,8 +55,6 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
         <div className="panel-heading"><p className="eyebrow">PONTOS DE ATENÇÃO</p><h3>Concentração e exposição comercial</h3></div>
         <div className="attention-grid">
           <div><span>Vendas em itens com margem abaixo de 10%</span><strong>{percent.format(data.attention.lowMarginShare)}</strong><small>{money.format(data.attention.lowMarginSales)}</small></div>
-          <div><span>Maior produto por venda</span><strong>{percent.format(data.attention.topProduct ? data.attention.topProduct.sales / totals.sales : 0)}</strong><small>{truncate(data.attention.topProduct?.name ?? "—", 42)} · margem {percent.format(data.attention.topProduct?.margin ?? 0)}</small></div>
-          <div><span>Maior cliente por venda</span><strong>{percent.format(data.attention.topClient?.share ?? 0)}</strong><small>{truncate(data.attention.topClient?.name ?? "—", 42)} · margem {percent.format(data.attention.topClient?.margin ?? 0)}</small></div>
         </div>
       </section>
 
