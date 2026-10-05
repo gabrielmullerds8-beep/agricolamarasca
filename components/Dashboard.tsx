@@ -14,9 +14,9 @@ import { ChartCard } from "./ChartCard";
 const chartTooltipStyle = { background: "#111914", border: "1px solid #334137", borderRadius: 12, color: "#f5f7f2" };
 const axisStyle = { fill: "#91a097", fontSize: 12 };
 
-function Change({ value, percentage = true }: { value: number; percentage?: boolean }) {
+function Change({ value }: { value: number }) {
   const positive = value >= 0;
-  return <small className={positive ? "positive" : "negative"}>{positive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{percentage ? percent.format(value) : `${(value * 100).toFixed(2).replace(".", ",")} p.p.`}</small>;
+  return <small className={positive ? "positive" : "negative"}>{positive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{percent.format(value)}</small>;
 }
 
 export function Dashboard({ records }: { records: SaleRecord[] }) {
@@ -38,7 +38,7 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
         <div className="weekly-kpis">
           <article><span>Vendas</span><strong>{money.format(lastClosedWeek.sales)}</strong><Change value={lastClosedWeek.salesChange} /></article>
           <article><span>Resultado</span><strong>{money.format(lastClosedWeek.profit)}</strong><Change value={lastClosedWeek.profitChange} /></article>
-          <article><span>Margem</span><strong>{percent.format(lastClosedWeek.margin)}</strong><Change value={lastClosedWeek.marginChange} percentage={false} /></article>
+          <article><span>Margem</span><strong>{percent.format(lastClosedWeek.margin)}</strong><Change value={lastClosedWeek.marginChange} /></article>
         </div>
       </section>
 

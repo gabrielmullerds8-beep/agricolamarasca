@@ -162,7 +162,7 @@ export function buildAnalytics(records: SaleRecord[]) {
       margin: lastMargin,
       salesChange: previousSales ? lastWeekSales / previousSales - 1 : 0,
       profitChange: previousProfit ? lastWeekProfit / previousProfit - 1 : 0,
-      marginChange: lastMargin - previousMargin,
+      marginChange: previousMargin ? lastMargin / previousMargin - 1 : 0,
     },
   };
 }
