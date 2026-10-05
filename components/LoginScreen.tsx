@@ -32,7 +32,7 @@ export function LoginScreen({ supabase }: { supabase: SupabaseClient }) {
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="primary-button login-button" disabled={loading}>{loading ? <LoaderCircle className="spin" size={18} /> : <LockKeyhole size={18} />} Entrar</button>
         </form>
-        <small>Dados protegidos por autenticação e políticas de acesso.</small>
+        <small>Sua sessão ficará salva neste dispositivo. Dados protegidos por autenticação e políticas de acesso.</small>
       </section>
     </main>
   );

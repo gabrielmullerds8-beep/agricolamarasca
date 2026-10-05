@@ -42,6 +42,7 @@ export default function Home() {
   const [importing, setImporting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = useMemo<SupabaseClient | null>(() => createBrowserSupabase(), []);
+  const signedInUserId = session?.user.id;
 
   useEffect(() => {
     let mounted = true;
@@ -65,14 +66,45 @@ export default function Home() {
       if (mounted) setLoading(false);
     }
     bootstrap();
-    const subscription = isSupabaseAuthEnabled ? supabase?.auth.onAuthStateChange(async (_event, nextSession) => {
+    const subscription = isSupabaseAuthEnabled ? supabase?.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (nextSession && supabase) await loadSupabaseRecords(supabase, setRecords, setNotice);
+      if (nextSession && supabase) void loadSupabaseRecords(supabase, setRecords, setNotice);
       if (!nextSession) setRecords([]);
       setLoading(false);
     }).data.subscription : undefined;
     return () => { mounted = false; subscription?.unsubscribe(); };
   }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase || (isSupabaseAuthEnabled && !signedInUserId)) return;
+
+    const channel = supabase
+      .channel("sales-records-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales_records" },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const deletedId = (payload.old as { id?: string }).id;
+            if (deletedId) setRecords((current) => current.filter((record) => record.id !== deletedId));
+            return;
+          }
+
+          const changedRecord = (payload.new as { data?: SaleRecord }).data;
+          if (!changedRecord) return;
+          setRecords((current) => {
+            const recordIndex = current.findIndex((record) => record.id === changedRecord.id);
+            if (recordIndex === -1) return [...current, changedRecord].sort((a, b) => a.date.localeCompare(b.date));
+            const updated = [...current];
+            updated[recordIndex] = changedRecord;
+            return updated.sort((a, b) => a.date.localeCompare(b.date));
+          });
+        },
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [signedInUserId, supabase]);
 
   useEffect(() => { if (!supabase && records.length) localStorage.setItem(LOCAL_KEY, JSON.stringify(records)); }, [records, supabase]);
   const customStartIso = brDateToIso(customStart);
