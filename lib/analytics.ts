@@ -2,7 +2,14 @@ import type { SaleRecord } from "@/types/sales";
 import { withComputedFields } from "@/lib/calculations";
 
 const dateAtNoon = (date: string) => new Date(`${date}T12:00:00`);
-const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+const isoDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const addDays = (date: Date, days: number) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
 
 function mondayOf(date: Date) {
   const result = new Date(date);
@@ -88,14 +95,39 @@ export function buildAnalytics(records: SaleRecord[]) {
     ticket: item.notes.size ? item.sales / item.notes.size : 0,
   }));
 
-  const weekly = [...weeklyMap.values()].sort((a, b) => a.key.localeCompare(b.key)).map((item) => ({
-    key: item.key,
-    label: item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(" de ", " "),
-    sales: item.sales,
-    cost: item.cost,
-    profit: item.profit,
-    margin: item.sales ? item.profit / item.sales : 0,
-  }));
+  const weeklyValues = [...weeklyMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+  const weekly: Array<{
+    key: string;
+    label: string;
+    axisLabel: string;
+    rangeLabel: string;
+    sales: number;
+    cost: number;
+    profit: number;
+    margin: number | null;
+  }> = [];
+
+  if (weeklyValues.length) {
+    const lastWeekDate = weeklyValues[weeklyValues.length - 1].date;
+    for (let weekDate = new Date(weeklyValues[0].date); weekDate <= lastWeekDate; weekDate = addDays(weekDate, 7)) {
+      const key = isoDate(weekDate);
+      const item = weeklyMap.get(key);
+      const weekEnd = addDays(weekDate, 6);
+      const sales = item?.sales ?? 0;
+      const cost = item?.cost ?? 0;
+      const profit = item?.profit ?? 0;
+      weekly.push({
+        key,
+        label: weekDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(" de ", " "),
+        axisLabel: weekDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+        rangeLabel: `${weekDate.toLocaleDateString("pt-BR")} a ${weekEnd.toLocaleDateString("pt-BR")}`,
+        sales,
+        cost,
+        profit,
+        margin: sales ? profit / sales : null,
+      });
+    }
+  }
 
   const clientRanking = [...clientMap.values()].map((item) => ({
     ...item,
@@ -111,13 +143,14 @@ export function buildAnalytics(records: SaleRecord[]) {
   })).sort((a, b) => b.sales - a.sales);
 
   const maximumDate = computedRecords.length ? dateAtNoon(computedRecords.reduce((max, record) => (record.date > max ? record.date : max), computedRecords[0].date)) : new Date();
-  const lastWeekStart = mondayOf(maximumDate);
-  const lastClosedSunday = new Date(lastWeekStart);
-  lastClosedSunday.setDate(lastClosedSunday.getDate() + 6);
-  const previousStart = new Date(lastWeekStart);
-  previousStart.setDate(previousStart.getDate() - 7);
-  const previousEnd = new Date(lastWeekStart);
-  previousEnd.setDate(previousEnd.getDate() - 1);
+  const latestWeekStart = mondayOf(maximumDate);
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const currentWeekStart = mondayOf(today);
+  const lastWeekStart = isoDate(latestWeekStart) === isoDate(currentWeekStart) ? addDays(latestWeekStart, -7) : latestWeekStart;
+  const lastClosedSunday = addDays(lastWeekStart, 6);
+  const previousStart = addDays(lastWeekStart, -7);
+  const previousEnd = addDays(lastWeekStart, -1);
 
   const inRange = (record: SaleRecord, start: Date, end: Date) => {
     const date = dateAtNoon(record.date);
@@ -162,7 +195,7 @@ export function buildAnalytics(records: SaleRecord[]) {
       margin: lastMargin,
       salesChange: previousSales ? lastWeekSales / previousSales - 1 : 0,
       profitChange: previousProfit ? lastWeekProfit / previousProfit - 1 : 0,
-      marginChange: previousMargin ? lastMargin / previousMargin - 1 : 0,
+      marginChange: previousSales ? lastMargin - previousMargin : 0,
     },
   };
 }

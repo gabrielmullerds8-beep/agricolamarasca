@@ -22,6 +22,7 @@ function Change({ value }: { value: number }) {
 export function Dashboard({ records }: { records: SaleRecord[] }) {
   const data = useMemo(() => buildAnalytics(records), [records]);
   const { totals, lastClosedWeek } = data;
+  const recentWeeks = data.weekly.slice(-10);
   const dateRange = records.length ? `${shortDate(records.reduce((min, record) => record.date < min ? record.date : min, records[0].date))} a ${shortDate(records.reduce((max, record) => record.date > max ? record.date : max, records[0].date))}` : "Sem dados";
 
   return (
@@ -44,10 +45,10 @@ export function Dashboard({ records }: { records: SaleRecord[] }) {
 
       <section className="chart-grid two">
         <ChartCard title="Vendas por semana (R$)" eyebrow="EVOLUÇÃO E MARGEM">
-          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => money.format(Number(value))}/><Line type="monotone" dataKey="sales" name="Vendas" stroke="#9acb4c" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%"><LineChart data={recentWeeks} margin={{ right: 8 }}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="axisLabel" tick={axisStyle} interval={0} minTickGap={0} padding={{ left: 12, right: 12 }}/><YAxis tick={axisStyle} tickFormatter={(value) => compactMoney.format(value)}/><Tooltip contentStyle={chartTooltipStyle} labelFormatter={(_label, payload) => payload[0]?.payload?.rangeLabel ? `Semana: ${payload[0].payload.rangeLabel}` : ""} formatter={(value) => money.format(Number(value))}/><Line type="monotone" dataKey="sales" name="Vendas" stroke="#9acb4c" strokeWidth={3} dot={{ fill: "#9acb4c", r: 3 }}/></LineChart></ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Margem por semana" eyebrow="EVOLUÇÃO E MARGEM">
-          <ResponsiveContainer width="100%" height="100%"><LineChart data={data.weekly}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="label" tick={axisStyle} interval={3}/><YAxis tick={axisStyle} tickFormatter={(value) => `${Math.round(value * 100)}%`}/><Tooltip contentStyle={chartTooltipStyle} formatter={(value) => percent.format(Number(value))}/><Line type="monotone" dataKey="margin" name="Margem" stroke="#f4bb32" strokeWidth={3} dot={false}/></LineChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%"><LineChart data={recentWeeks} margin={{ right: 8 }}><CartesianGrid stroke="#263129" vertical={false}/><XAxis dataKey="axisLabel" tick={axisStyle} interval={0} minTickGap={0} padding={{ left: 12, right: 12 }}/><YAxis tick={axisStyle} tickFormatter={(value) => `${Math.round(value * 100)}%`}/><Tooltip contentStyle={chartTooltipStyle} labelFormatter={(_label, payload) => payload[0]?.payload?.rangeLabel ? `Semana: ${payload[0].payload.rangeLabel}` : ""} formatter={(value) => percent.format(Number(value))}/><Line type="monotone" dataKey="margin" name="Margem" stroke="#f4bb32" strokeWidth={3} dot={{ fill: "#f4bb32", r: 3 }} connectNulls={false}/></LineChart></ResponsiveContainer>
         </ChartCard>
       </section>
 
